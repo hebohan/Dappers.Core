@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <RootNamespace>Dappers</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;COREFX;NETCOREAPP1_1;DEBUG;NETCOREAPP1_1</DefineConstants>
+    <Optimize>true</Optimize>
+    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>TRACE;COREFX</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Dapper\**" />
+    <Compile Remove="Dapper_old\**" />
+    <EmbeddedResource Remove="Dapper\**" />
+    <EmbeddedResource Remove="Dapper_old\**" />
+    <None Remove="Dapper\**" />
+    <None Remove="Dapper_old\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Cfg\ConfigManager.cs" />
+    <Compile Remove="SqlMapperExtension.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Cfg\" />
+    <Folder Include="Session\" />
+    <Folder Include="XmlTags\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MySql.Data.Core" Version="7.0.4-IR-191" />
+    <PackageReference Include="NLog" Version="5.0.0-beta06" />
+    <PackageReference Include="StackExchange.Redis" Version="1.2.1" />
+    <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
+    <PackageReference Include="System.Xml.XmlSerializer" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Dapper.Core">
+      <HintPath>..\Lib\Dapper.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
