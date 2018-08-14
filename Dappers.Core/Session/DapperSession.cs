@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.ComponentModel;
-using Dappers.Cache;
 using Dappers.Cfg;
 using Dappers.Mapping;
 using System.Reflection;
@@ -112,128 +111,13 @@ namespace Dappers.Session
 
         #endregion
 
-        #region 从redis缓存中移除该数据
-
-        /// <summary>
-        /// 从redis缓存中移除该数据
-        /// </summary>
-        /// <param name="type"></param>
-        /// <param name="id"></param>
-        private void DeleteCacheInfo(Type type, object id)
-        {
-            if (id == null) return;
-
-            bool isDeleted = false;
-
-            var key = "Open.Model." + type.Name + "_-1#?#Open.Model." + type.Name + "#" + id.ToString();
-
-            if (StackExchangeHelper.KeyExists(key))
-            {
-                while (!isDeleted)
-                {
-                    if (StackExchangeHelper.KeyExists(key))
-                    {
-                        if (StackExchangeHelper.KeyDelete(key))
-                        {
-                            isDeleted = true;
-                        }
-                    }
-                    else
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// 从redis缓存中移除该数据
-        /// </summary>
-        /// <param name="obj"></param>
-        private void DeleteCacheInfo(object obj)
-        {
-            Type type = obj.GetType();
-            string id = String.Empty;
-            TableAttribute table = IsCacheReadWrite(type);
-            if (table != null)
-            {
-                var properties = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.GetProperty);
-                foreach (System.Reflection.PropertyInfo p in properties)
-                {
-                    if (p.PropertyType.Namespace.Equals("System") || p.PropertyType.IsEnum())//only primitive types
-                    {
-                        ColumnAttribute col = null;
-                        object[] attrs = p.GetCustomAttributes(typeof(ColumnAttribute), false).ToArray();
-                        if (attrs.Length > 0) col = attrs[0] as ColumnAttribute;
-                        if (col != null)
-                        {
-                            if (col.IsPrimaryKey)
-                            {
-                                id = p.GetValue(obj, null).ToString();
-                                break;
-                            }
-                        }
-                    }
-                }
-                DeleteCacheInfo(type, id);
-            }
-        }
-
-        /// <summary>
-        /// 从redis缓存中移除该组数据
-        /// </summary>
-        /// <param name="objs"></param>
-        private void DeleteCacheInfo<T>(IList<T> objs)
-        {
-            if (objs == null || objs.Count == 0) return;
-
-            List<object> ids = new List<object>();
-            Type type = typeof(T);
-            string value = String.Empty;
-
-            TableAttribute table = IsCacheReadWrite(type);
-
-            if (table != null)
-            {
-                var properties = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.GetProperty);
-                foreach (var obj in objs)
-                {
-                    foreach (System.Reflection.PropertyInfo p in properties)
-                    {
-                        if (p.PropertyType.Namespace.Equals("System") || p.PropertyType.IsEnum())//only primitive types
-                        {
-                            ColumnAttribute col = null;
-                            object[] attrs = p.GetCustomAttributes(typeof(ColumnAttribute), false).ToArray();
-                            if (attrs.Length > 0) col = attrs[0] as ColumnAttribute;
-                            if (col != null)
-                            {
-                                if (col.IsPrimaryKey)
-                                {
-                                    ids.Add(p.GetValue(obj, null).ToString());
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
-                foreach (var id in ids)
-                {
-                    DeleteCacheInfo(type, id);
-                }
-            }
-        }
-
-        #endregion
+        
 
         public bool Delete<T>(Object id)
         {
             if (id == null) return false;
 
             Type type = typeof(T);
-
-            if (IsCacheReadWrite(type) != null)
-            {
-                DeleteCacheInfo(type, id);
-            }
 
             MappingInfo info = MappingInfo.GetMappingInfo<T>();
             return Dao.Execute(
@@ -256,14 +140,9 @@ namespace Dappers.Session
                 if ((String.Compare(key, primaryKey, true) == 0))
                 {
                     hasId = true;
-                    DeleteCacheInfo(type, param[key]);
                 }
 
                 where += string.Format(" and {0}={1}{0}", key, StatementParser.PREFIX);
-            }
-            if (IsCacheReadWrite(type) != null && !hasId)
-            {
-                throw new ArgumentException("该表格有加入缓存读写，但当前查询信息未包括主键字段！");
             }
             sql = sql + where.Substring(5);
             return Dao.Execute(
@@ -275,8 +154,6 @@ namespace Dappers.Session
         public bool Delete(Object obj)
         {
             if (obj == null) return false;
-
-            DeleteCacheInfo(obj);
 
             string sql = MappingInfo.GetSqlStatementByType(obj.GetType(), "Delete");
             return Dao.Execute(
@@ -375,8 +252,6 @@ namespace Dappers.Session
         {
             if (obj == null) return false;
 
-            DeleteCacheInfo(obj);
-
             string sql = MappingInfo.GetSqlStatementByType(obj.GetType(), "Update", extTableName);
             return Dao.Execute(
                     sql,
@@ -387,8 +262,6 @@ namespace Dappers.Session
         public int Update<T>(IList<T> li, string extTableName = null)
         {
             if (li == null || li.Count == 0) return -1;
-
-            DeleteCacheInfo(li);
 
             string sql = MappingInfo.GetSqlStatementByType(li[0].GetType(), "Update", extTableName);
 
@@ -426,12 +299,7 @@ namespace Dappers.Session
                 if ((String.Compare(key, primaryKey, true) == 0))
                 {
                     hasId = true;
-                    DeleteCacheInfo(type, info.Parameters[key]);
                 }
-            }
-            if (IsCacheReadWrite(type) != null && !hasId)
-            {
-                throw new ArgumentException("该表格有加入缓存读写，但当前查询信息未包括主键字段！");
             }
 
             string update = info.GetSQLPartialUpdate(di);
@@ -462,10 +330,6 @@ namespace Dappers.Session
 
         public int Execute(QueryInfo info)
         {
-            if (IsCacheReadWrite(info.MappingType.GetType()) != null)
-            {
-                throw new ArgumentException("该表格有加入缓存读写，无法使用该方法！");
-            }
             GetDynamicOrDefaultSql(info);
             return Dao.Execute(info);
         }
